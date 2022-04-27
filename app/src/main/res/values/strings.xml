@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Nexus BLE peripheral</string>
+    <string name="gatt_service_name">Nexus BLE peripheral</string>
+    <string name="gatt_service_description">Nexus BLE GATT service</string>
+    <string name="gatt_service_running_notification">Nexus BLE is advertising</string>
+    <string name="permission_ble_rationale_message">BLE permission needed</string>
+</resources>
