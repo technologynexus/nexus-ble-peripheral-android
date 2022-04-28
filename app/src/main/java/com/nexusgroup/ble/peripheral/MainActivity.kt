@@ -5,21 +5,47 @@ import android.content.Intent
 import android.content.ServiceConnection
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.util.Log
 import no.nordicsemi.android.ble.ble_gatt_server.DeviceAPI
 import no.nordicsemi.android.ble.ble_gatt_server.GattService
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        private const val TAG = "activity"
+    }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val defaultScope = CoroutineScope(Dispatchers.Default)
     private var gattServiceConn: GattServiceConn? = null
+    private val myCharacteristicValueChangeNotifications = Channel<String>()
+
+    private fun log(priority: Int, message: String) {
+        Log.println(priority, TAG, message)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        defaultScope.launch {
+            for (newValue in myCharacteristicValueChangeNotifications) {
+                mainHandler.run {
+                    log(Log.INFO, "myCharacteristicValueChangeNotifications $newValue")
+                    gattServiceConn?.binding?.setMyCharacteristicValue("$newValue reply")
+                }
+            }
+        }
 
         // Startup our Bluetooth GATT service explicitly so it continues to run even if
         // this activity is not in focus
@@ -51,7 +77,7 @@ class MainActivity : AppCompatActivity() {
         stopService(Intent(this, GattService::class.java))
     }
 
-    private class GattServiceConn : ServiceConnection {
+    private inner class GattServiceConn : ServiceConnection {
         var binding: DeviceAPI? = null
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -60,6 +86,7 @@ class MainActivity : AppCompatActivity() {
 
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             binding = service as? DeviceAPI
+            binding?.setMyCharacteristicChangedChannel(myCharacteristicValueChangeNotifications)
         }
     }
 }

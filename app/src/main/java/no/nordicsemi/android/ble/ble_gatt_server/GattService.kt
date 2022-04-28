@@ -36,12 +36,15 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.nexusgroup.ble.peripheral.BuildConfig
 import com.nexusgroup.ble.peripheral.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.SendChannel
 import no.nordicsemi.android.ble.BleManager
 import no.nordicsemi.android.ble.BleServerManager
 import no.nordicsemi.android.ble.observer.ServerObserver
 import java.nio.charset.StandardCharsets
 import java.util.*
-
+import kotlinx.coroutines.launch
 
 /**
  * Advertises a Bluetooth LE GATT service and takes care of its requests. The service
@@ -65,6 +68,7 @@ import java.util.*
 class GattService : Service() {
     companion object {
         private const val TAG = "gatt-service"
+        private val CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     }
 
     private var serverManager: ServerManager? = null
@@ -72,6 +76,8 @@ class GattService : Service() {
     private lateinit var bluetoothObserver: BroadcastReceiver
 
     private var bleAdvertiseCallback: BleAdvertiser.Callback? = null
+
+    private var myCharacteristicChangedChannel: SendChannel<String>? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -160,6 +166,10 @@ class GattService : Service() {
      */
     private inner class DataPlane : Binder(), DeviceAPI {
 
+        override fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<String>) {
+            serverManager?.setMyCharacteristicChangedChannel(sendChannel)
+        }
+
         override fun setMyCharacteristicValue(value: String) {
             serverManager?.setMyCharacteristicValue(value)
         }
@@ -169,20 +179,19 @@ class GattService : Service() {
     /*
      * Manages the entire GATT service, declaring the services and characteristics on offer
      */
-    private class ServerManager(val context: Context) : BleServerManager(context), ServerObserver, DeviceAPI {
+    private inner class ServerManager(val context: Context) : BleServerManager(context), ServerObserver, DeviceAPI {
 
-        companion object {
-            private val CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-        }
 
-        private val myGattCharacteristic = sharedCharacteristic(
+        private val myGattCharacteristic = characteristic(
             // UUID:
             MyServiceProfile.MY_CHARACTERISTIC_UUID,
             // Properties:
             BluetoothGattCharacteristic.PROPERTY_READ
+                   or BluetoothGattCharacteristic.PROPERTY_WRITE
                    or BluetoothGattCharacteristic.PROPERTY_NOTIFY,
             // Permissions:
-            BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED_MITM,
+            BluetoothGattCharacteristic.PERMISSION_READ
+                   or BluetoothGattCharacteristic.PERMISSION_WRITE,
             // Descriptors:
             // cccd() - this could have been used called, had no encryption been used.
             // Instead, let's define CCCD with custom permissions:
@@ -208,6 +217,10 @@ class GattService : Service() {
             serverConnections.values.forEach { serverConnection ->
                 serverConnection.sendNotificationForMyGattCharacteristic(bytes)
             }
+        }
+
+        override fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<String>) {
+            myCharacteristicChangedChannel = sendChannel
         }
 
         override fun log(priority: Int, message: String) {
@@ -265,7 +278,20 @@ class GattService : Service() {
                 return gattCallback!!
             }
 
-            private inner class GattCallback() : BleManagerGattCallback() {
+            private inner class GattCallback : BleManagerGattCallback() {
+
+                private val defaultScope = CoroutineScope(Dispatchers.Default)
+
+                override fun initialize() {
+                    setNotificationCallback(myGattCharacteristic).with { _, data ->
+                        if (data.value != null) {
+                            val value = String(data.value!!, Charsets.UTF_8)
+                            defaultScope.launch {
+                                myCharacteristicChangedChannel?.send(value)
+                            }
+                        }
+                    }
+                }
 
                 // There are no services that we need from the connecting device, but
                 // if there were, we could specify them here.
