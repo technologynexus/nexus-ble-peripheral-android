@@ -7,7 +7,7 @@ interface DeviceAPI {
 	/**
 	 * Change the value of the GATT characteristic that we're publishing
 	 */
-	fun setMyCharacteristicValue(value: String)
+	fun setMyCharacteristicValue(value: ByteArray)
 
-	fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<String>)
+	fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<ByteArray>)
 }

@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import com.nexusgroup.personal.sdk.android.ble.BLEDeviceSession
+import com.nexusgroup.personal.sdk.android.ble.SDKHex
 import no.nordicsemi.android.ble.ble_gatt_server.DeviceAPI
 import no.nordicsemi.android.ble.ble_gatt_server.GattService
 import kotlinx.coroutines.channels.Channel
@@ -29,7 +30,7 @@ class MainActivity : AppCompatActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val defaultScope = CoroutineScope(Dispatchers.Default)
     private var gattServiceConn: GattServiceConn? = null
-    private val myCharacteristicValueChangeNotifications = Channel<String>()
+    private val myCharacteristicValueChangeNotifications = Channel<ByteArray>()
     private val session = BLEDeviceSession()
 
     private fun log(priority: Int, message: String) {
@@ -43,8 +44,9 @@ class MainActivity : AppCompatActivity() {
         defaultScope.launch {
             for (newValue in myCharacteristicValueChangeNotifications) {
                 mainHandler.run {
-                    log(Log.INFO, "myCharacteristicValueChangeNotifications $newValue")
-                    gattServiceConn?.binding?.setMyCharacteristicValue("$newValue reply")
+                    log(Log.INFO, "myCharacteristicValueChangeNotifications ${SDKHex.encode(newValue)}")
+                    gattServiceConn?.binding?.setMyCharacteristicValue(newValue)
+                    session.dataReceived(newValue)
                 }
             }
         }

@@ -42,7 +42,6 @@ import kotlinx.coroutines.channels.SendChannel
 import no.nordicsemi.android.ble.BleManager
 import no.nordicsemi.android.ble.BleServerManager
 import no.nordicsemi.android.ble.observer.ServerObserver
-import java.nio.charset.StandardCharsets
 import java.util.*
 import kotlinx.coroutines.launch
 
@@ -77,7 +76,7 @@ class GattService : Service() {
 
     private var bleAdvertiseCallback: BleAdvertiser.Callback? = null
 
-    private var myCharacteristicChangedChannel: SendChannel<String>? = null
+    private var myCharacteristicChangedChannel: SendChannel<ByteArray>? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -166,11 +165,11 @@ class GattService : Service() {
      */
     private inner class DataPlane : Binder(), DeviceAPI {
 
-        override fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<String>) {
+        override fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<ByteArray>) {
             serverManager?.setMyCharacteristicChangedChannel(sendChannel)
         }
 
-        override fun setMyCharacteristicValue(value: String) {
+        override fun setMyCharacteristicValue(value: ByteArray) {
             serverManager?.setMyCharacteristicValue(value)
         }
 
@@ -211,15 +210,14 @@ class GattService : Service() {
 
         private val serverConnections = mutableMapOf<String, ServerConnection>()
 
-        override fun setMyCharacteristicValue(value: String) {
-            val bytes = value.toByteArray(StandardCharsets.UTF_8)
-            myGattCharacteristic.value = bytes
+        override fun setMyCharacteristicValue(value: ByteArray) {
+            myGattCharacteristic.value = value
             serverConnections.values.forEach { serverConnection ->
-                serverConnection.sendNotificationForMyGattCharacteristic(bytes)
+                serverConnection.sendNotificationForMyGattCharacteristic(value)
             }
         }
 
-        override fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<String>) {
+        override fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<ByteArray>) {
             myCharacteristicChangedChannel = sendChannel
         }
 
@@ -285,9 +283,8 @@ class GattService : Service() {
                 override fun initialize() {
                     setNotificationCallback(myGattCharacteristic).with { _, data ->
                         if (data.value != null) {
-                            val value = String(data.value!!, Charsets.UTF_8)
                             defaultScope.launch {
-                                myCharacteristicChangedChannel?.send(value)
+                                myCharacteristicChangedChannel?.send(data.value!!)
                             }
                         }
                     }
