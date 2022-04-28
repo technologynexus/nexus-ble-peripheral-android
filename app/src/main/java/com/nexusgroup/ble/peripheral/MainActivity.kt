@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import com.nexusgroup.personal.sdk.android.ble.BLEDeviceSession
 import no.nordicsemi.android.ble.ble_gatt_server.DeviceAPI
 import no.nordicsemi.android.ble.ble_gatt_server.GattService
 import kotlinx.coroutines.channels.Channel
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     private val defaultScope = CoroutineScope(Dispatchers.Default)
     private var gattServiceConn: GattServiceConn? = null
     private val myCharacteristicValueChangeNotifications = Channel<String>()
+    private val session = BLEDeviceSession()
 
     private fun log(priority: Int, message: String) {
         Log.println(priority, TAG, message)
