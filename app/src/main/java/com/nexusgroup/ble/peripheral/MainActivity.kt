@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
     private val defaultScope = CoroutineScope(Dispatchers.Default)
     private var gattServiceConn: GattServiceConn? = null
     private val myCharacteristicValueChangeNotifications = Channel<ByteArray>()
-    private val session = BLEDeviceSession()
+    private var session: BLEDeviceSession? = null
 
     private fun log(priority: Int, message: String) {
         Log.println(priority, TAG, message)
@@ -40,13 +40,14 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        session = BLEDeviceSession(this)
 
         defaultScope.launch {
             for (newValue in myCharacteristicValueChangeNotifications) {
                 mainHandler.run {
                     log(Log.INFO, "myCharacteristicValueChangeNotifications ${SDKHex.encode(newValue)}")
                     gattServiceConn?.binding?.setMyCharacteristicValue(newValue)
-                    session.dataReceived(newValue)
+                    session?.dataReceived(newValue)
                 }
             }
         }

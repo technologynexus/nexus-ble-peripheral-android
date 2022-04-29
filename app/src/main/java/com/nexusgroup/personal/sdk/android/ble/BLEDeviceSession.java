@@ -1,5 +1,6 @@
 package com.nexusgroup.personal.sdk.android.ble;
 
+import android.content.Context;
 import android.util.Log;
 import com.nexusgroup.personal.sdk.android.ble.tlv.util.TLVParserBytesMissingException;
 import com.nexusgroup.personal.sdk.android.ble.tlv.util.TLVRecord;
@@ -13,6 +14,11 @@ public class BLEDeviceSession {
     private final static String TAG = "ble-device-session";
     private byte[] unparsedBytes = null;
     private final TlvParser tlvParser = new TlvParser();
+    private Crypto crypto;
+
+    public BLEDeviceSession(Context ctx) {
+        crypto = new Crypto(ctx);
+    }
 
     public void dataReceived(byte[] incoming) {
         byte[] data = unparsedBytes != null ? ArrayUtils.addAll(unparsedBytes, incoming) : incoming;
