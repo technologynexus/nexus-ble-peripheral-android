@@ -3,20 +3,18 @@ package com.nexusgroup.ble.peripheral
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.util.Log
-import com.nexusgroup.personal.sdk.android.ble.BLEDeviceSession
-import com.nexusgroup.personal.sdk.android.ble.SDKHex
-import no.nordicsemi.android.ble.ble_gatt_server.DeviceAPI
-import no.nordicsemi.android.ble.ble_gatt_server.GattService
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import no.nordicsemi.android.ble.ble_gatt_server.DeviceAPI
+import no.nordicsemi.android.ble.ble_gatt_server.GattService
+
 
 class MainActivity : AppCompatActivity() {
     companion object {
@@ -27,11 +25,9 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
-    private val mainHandler = Handler(Looper.getMainLooper())
     private val defaultScope = CoroutineScope(Dispatchers.Default)
     private var gattServiceConn: GattServiceConn? = null
-    private val myCharacteristicValueChangeNotifications = Channel<ByteArray>()
-    private var session: BLEDeviceSession? = null
+    private val foregroundServiceStatusChangeNotifications = Channel<String>()
 
     private fun log(priority: Int, message: String) {
         Log.println(priority, TAG, message)
@@ -40,17 +36,14 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        session = BLEDeviceSession(this)
 
         defaultScope.launch {
-            for (newValue in myCharacteristicValueChangeNotifications) {
-                mainHandler.run {
-                    log(Log.INFO, "myCharacteristicValueChangeNotifications ${SDKHex.encode(newValue)}")
-                    var reply = session?.handleData(newValue)
-                    if (reply != null) {
-                        gattServiceConn?.binding?.setMyCharacteristicValue(reply)
-                    }
-                }
+            for (newValue in foregroundServiceStatusChangeNotifications) {
+                log(Log.INFO, "foregroundServiceStatusChangeNotifications $newValue")
+                runOnUiThread(Runnable {
+                    val msg = findViewById<TextView>(R.id.statusText)
+                    msg.text = newValue
+                })
             }
         }
 
@@ -93,7 +86,7 @@ class MainActivity : AppCompatActivity() {
 
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             binding = service as? DeviceAPI
-            binding?.setMyCharacteristicChangedChannel(myCharacteristicValueChangeNotifications)
+            binding?.setForegroundServiceStatusChannel(foregroundServiceStatusChangeNotifications)
         }
     }
 }

@@ -36,6 +36,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.nexusgroup.ble.peripheral.BuildConfig
 import com.nexusgroup.ble.peripheral.R
+import com.nexusgroup.personal.sdk.android.ble.BLEDeviceSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.SendChannel
@@ -76,7 +77,13 @@ class GattService : Service() {
 
     private var bleAdvertiseCallback: BleAdvertiser.Callback? = null
 
-    private var myCharacteristicChangedChannel: SendChannel<ByteArray>? = null
+    private var foregroundServiceStatusChangedChannel: SendChannel<String>? = null
+
+    private var bleSession: BLEDeviceSession? = null
+
+    private val defaultScope = CoroutineScope(Dispatchers.Default)
+
+    private var status = ""
 
     override fun onCreate() {
         super.onCreate()
@@ -124,6 +131,14 @@ class GattService : Service() {
 
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         if (bluetoothManager.adapter?.isEnabled == true) enableBleServices()
+
+        bleSession = BLEDeviceSession(this)
+    }
+
+    fun sendStatusToApp() {
+        defaultScope.launch {
+            foregroundServiceStatusChangedChannel?.send(status)
+        }
     }
 
     override fun onDestroy() {
@@ -165,12 +180,8 @@ class GattService : Service() {
      */
     private inner class DataPlane : Binder(), DeviceAPI {
 
-        override fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<ByteArray>) {
-            serverManager?.setMyCharacteristicChangedChannel(sendChannel)
-        }
-
-        override fun setMyCharacteristicValue(value: ByteArray) {
-            serverManager?.setMyCharacteristicValue(value)
+        override fun setForegroundServiceStatusChannel(sendChannel: SendChannel<String>) {
+            serverManager?.setForegroundServiceStatusChannel(sendChannel)
         }
 
     }
@@ -210,15 +221,17 @@ class GattService : Service() {
 
         private val serverConnections = mutableMapOf<String, ServerConnection>()
 
-        override fun setMyCharacteristicValue(value: ByteArray) {
-            myGattCharacteristic.value = value
+
+
+        fun setMyCharacteristicValue(value: ByteArray) {
             serverConnections.values.forEach { serverConnection ->
                 serverConnection.sendNotificationForMyGattCharacteristic(value)
             }
         }
 
-        override fun setMyCharacteristicChangedChannel(sendChannel: SendChannel<ByteArray>) {
-            myCharacteristicChangedChannel = sendChannel
+        override fun setForegroundServiceStatusChannel(sendChannel: SendChannel<String>) {
+            foregroundServiceStatusChangedChannel = sendChannel
+            sendStatusToApp()
         }
 
         override fun log(priority: Int, message: String) {
@@ -247,6 +260,8 @@ class GattService : Service() {
                 useServer(this@ServerManager)
                 connect(device).enqueue()
             }
+            status = "Device ${device.address} connected"
+            sendStatusToApp()
         }
 
         override fun onDeviceDisconnectedFromServer(device: BluetoothDevice) {
@@ -254,6 +269,9 @@ class GattService : Service() {
 
             // The device has disconnected. Forget it and close.
             serverConnections.remove(device.address)?.close()
+
+            status = ""
+            sendStatusToApp()
         }
 
         /*
@@ -279,13 +297,14 @@ class GattService : Service() {
 
             private inner class GattCallback : BleManagerGattCallback() {
 
-                private val defaultScope = CoroutineScope(Dispatchers.Default)
-
                 override fun initialize() {
                     setNotificationCallback(myGattCharacteristic).with { _, data ->
                         if (data.value != null) {
                             defaultScope.launch {
-                                myCharacteristicChangedChannel?.send(data.value!!)
+                                var reply = bleSession?.handleData(data.value!!)
+                                if (reply != null) {
+                                    setMyCharacteristicValue(reply)
+                                }
                             }
                         }
                     }
