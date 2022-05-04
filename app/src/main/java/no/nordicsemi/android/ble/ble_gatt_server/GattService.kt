@@ -264,7 +264,8 @@ class GattService : Service() {
             private var gattCallback: GattCallback? = null
 
             fun sendNotificationForMyGattCharacteristic(value: ByteArray) {
-                sendNotification(myGattCharacteristic, value).enqueue()
+                Log.println(Log.DEBUG, TAG, "writeCharacteristic ${value.size} bytes")
+                sendNotification(myGattCharacteristic, value).split().enqueue()
             }
 
             override fun log(priority: Int, message: String) {
@@ -288,6 +289,7 @@ class GattService : Service() {
                             }
                         }
                     }
+                    enableNotifications(myGattCharacteristic).enqueue()
                 }
 
                 // There are no services that we need from the connecting device, but

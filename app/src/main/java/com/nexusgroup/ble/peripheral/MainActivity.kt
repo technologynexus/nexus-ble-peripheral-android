@@ -46,8 +46,10 @@ class MainActivity : AppCompatActivity() {
             for (newValue in myCharacteristicValueChangeNotifications) {
                 mainHandler.run {
                     log(Log.INFO, "myCharacteristicValueChangeNotifications ${SDKHex.encode(newValue)}")
-                    gattServiceConn?.binding?.setMyCharacteristicValue(newValue)
-                    session?.dataReceived(newValue)
+                    var reply = session?.handleData(newValue)
+                    if (reply != null) {
+                        gattServiceConn?.binding?.setMyCharacteristicValue(reply)
+                    }
                 }
             }
         }
