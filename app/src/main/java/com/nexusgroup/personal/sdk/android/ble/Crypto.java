@@ -5,6 +5,7 @@ import android.util.Log;
 
 import java.io.InputStream;
 import java.security.KeyStore;
+import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.cert.Certificate;
@@ -38,8 +39,12 @@ public class Crypto {
         return certificate.getEncoded();
     }
 
+    public byte[] certificateSha256() throws Exception {
+        return MessageDigest.getInstance("SHA-256").digest(encodedCertificate());
+    }
+
     public byte[] sign(byte[] message) throws Exception {
-        Signature signature = Signature.getInstance("SHA256withRSA");
+        Signature signature = Signature.getInstance("NONEwithRSA");
         signature.initSign(privateKey);
         signature.update(message);
         byte[] digitalSignature = signature.sign();
