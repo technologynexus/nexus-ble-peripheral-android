@@ -5,7 +5,8 @@ This application emulates BLE peripheral that can be used with Nexus BLE service
 ## How to test
 1. Install Nexus BLE service on Windows machine. You must use version v4.2.0 or higher.
 2. Open the project in Android Studio and run the app. Make sure the phone supports BLE peripheral mode.
-3. Nexus BLE service should automatically discover and connect to the phone.
+3. Nexus BLE service should automatically discover and connect to the phone:
+[!Tray icon windows](service-tray-connected.png)
 4. BLE traffic is logged and can be seen in Logcat tab in Android Studio:
 ```
 2022-05-04 15:01:56.932 9883-9962/com.nexusgroup.ble.peripheral I/ble-device-session: received envelope tag PROFILE_IDS
@@ -20,5 +21,8 @@ This application emulates BLE peripheral that can be used with Nexus BLE service
 2022-05-04 15:01:57.251 9883-9962/com.nexusgroup.ble.peripheral D/gatt-service: sending back 42 bytes, value: (0x) A2-28-C4-20-94-86-20-48-92-35-0B-97-9E-F0-DF-1A-8A-EE-C0-4A-C1-19-F7-9C-0C-F6-E5-11-E6-8C-E8-5C-AA-90-6A-CC-C7-01-02-D0-01-00
 ```
 5. In Windows, make sure certificate is copied to the Certificate Store:
+[!Cert store windows](service-certmgr.png)
 6. Open https://server.cryptomix.com/secure and select the certificate to authenticate with:
+[!Cryptomix TLS select cert](service-browser-tls-select.png)
 7. After successfull signature you should see this:
+[!Cryptomix TLS OK](service-browser-tls-ok.png)
