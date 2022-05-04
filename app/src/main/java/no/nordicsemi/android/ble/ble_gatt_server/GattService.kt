@@ -45,6 +45,7 @@ import no.nordicsemi.android.ble.BleServerManager
 import no.nordicsemi.android.ble.observer.ServerObserver
 import java.util.*
 import kotlinx.coroutines.launch
+import no.nordicsemi.android.ble.utils.ParserUtils
 
 /**
  * Advertises a Bluetooth LE GATT service and takes care of its requests. The service
@@ -266,7 +267,7 @@ class GattService : Service() {
 
         override fun onDeviceDisconnectedFromServer(device: BluetoothDevice) {
             bleSession = null
-            
+
             log(Log.DEBUG, "Device disconnected ${device.address}")
 
             // The device has disconnected. Forget it and close.
@@ -284,7 +285,7 @@ class GattService : Service() {
             private var gattCallback: GattCallback? = null
 
             fun sendNotificationForMyGattCharacteristic(value: ByteArray) {
-                Log.println(Log.DEBUG, TAG, "writeCharacteristic ${value.size} bytes")
+                Log.println(Log.DEBUG, TAG, "sending back ${value.size} bytes, value: ${ParserUtils.parse(value)}")
                 sendNotification(myGattCharacteristic, value).split().enqueue()
             }
 
