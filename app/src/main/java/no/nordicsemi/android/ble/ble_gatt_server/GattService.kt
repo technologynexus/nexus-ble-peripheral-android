@@ -131,8 +131,6 @@ class GattService : Service() {
 
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         if (bluetoothManager.adapter?.isEnabled == true) enableBleServices()
-
-        bleSession = BLEDeviceSession(this)
     }
 
     fun sendStatusToApp() {
@@ -251,6 +249,8 @@ class GattService : Service() {
         }
 
         override fun onDeviceConnectedToServer(device: BluetoothDevice) {
+            bleSession = BLEDeviceSession(context)
+
             log(Log.DEBUG, "Device connected ${device.address}")
 
             // A new device connected to the phone. Connect back to it, so it could be used
@@ -265,6 +265,8 @@ class GattService : Service() {
         }
 
         override fun onDeviceDisconnectedFromServer(device: BluetoothDevice) {
+            bleSession = null
+            
             log(Log.DEBUG, "Device disconnected ${device.address}")
 
             // The device has disconnected. Forget it and close.
